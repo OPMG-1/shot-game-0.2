@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Russian Roulette Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 2em;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            margin-top: 0;
+        }
+        button {
+            margin: 0.5em;
+            padding: 0.5em 1em;
+            font-size: 1em;
+        }
+        .hidden {
+            display: none;
+        }
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 1em;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>샷건 룰렛 게임</h1>
+        <div id="clickInfo"></div>
+        <div id="bulletInfo"></div>
+        <div id="itemInfoP1"></div>
+        <div id="itemInfoP2"></div>
+        <div id="lifeInfoP1"></div>
+        <div id="lifeInfoP2"></div>
+        <button id="shootOpponent">상대에게 쏘기</button>
+        <button id="shootSelf">자신에게 쏘기</button>
+        <button id="useItem">아이템 사용</button>
+        <button id="resetButton">게임 리셋</button>
+        <button id="storyButton">이야기</button>
+        <button id="instructionsButton">플레이 방법 및 아이템 설명</button>
+    </div>
+
+    <div id="storyModal" class="modal hidden">
+        <h1>이야기</h1>
+        <p>어둠 속에서 눈을 떴습니다. 당신은 방금 이곳에 도착한 것 같지만, 왜 여기에 있는지는 기억나지 않습니다. 몸에 묶인 끈들이 당신의 움직임을 제한합니다. 주변이 점점 밝아지면서 당신은 '샷건 룰렛'이라는 곳에 있다는 것을 깨닫습니다.</p>
+        <p>여기서 당신은 누군가와의 생존 게임에 참여하게 됩니다. 게임의 규칙은 간단합니다. 당신과 상대는 번갈아가며 총을 겨룹니다. 실탄을 맞으면 생명이 줄어들고, 최후의 생존자가 될 때까지 서로를 제압해야 합니다. 목표는 간단합니다. 상대보다 오래 살아남는 것입니다. 승리하면 자유를 얻을 수 있지만, 패배하면 어두운 운명이 당신을 기다립니다.</p>
+        <p>여기에는 또 다른 참가자 P2가 있습니다. 그 역시 동일한 목표를 가지고 있습니다. 당신의 선택이 운명을 좌우할 수 있는 곳입니다. 전략적으로 행동하고, 운을 사용하여 승리를 가져오세요. 그렇지 않으면, 당신의 생명은 빠르게 소멸될 것입니다.</p>
+        <button id="closeStoryModal">닫기</button>
+    </div>
+
+    <div id="instructionsModal" class="modal hidden">
+        <h2>플레이 방법 및 아이템 설명</h2>
+        <p>플레이 방법: 각 플레이어는 번갈아 가며 상대방에게 총을 쏘거나 자신에게 총을 쏠 수 있습니다. 실탄이 나올 경우 생명이 줄어들고, 공포탄이 나올 경우 아무 일도 일어나지 않습니다. 모든 탄약이 소진되면 자동으로 재장전됩니다.</p>
+        <p>아이템 설명:</p>
+        <ul>
+            <li>알약: 생명이 1 증가합니다.</li>
+            <li>돋보기: 다음 탄이 실탄인지 공포탄인지 알 수 있습니다.</li>
+            <li>맥주: 현재 탄을 제거합니다.</li>
+            <li>조커카드: 탄약을 재장전합니다.</li>
+        </ul>
+        <button id="closeInstructionsModal">닫기</button>
+    </div>
+
+    <div id="modalOverlay" class="modal-overlay hidden"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const shootOpponent = document.getElementById('shootOpponent');
+            const shootSelf = document.getElementById('shootSelf');
+            const useItem = document.getElementById('useItem');
+            const resetButton = document.getElementById('resetButton');
+            const storyButton = document.getElementById('storyButton');
+            const instructionsButton = document.getElementById('instructionsButton');
+            const clickInfo = document.getElementById('clickInfo');
+            const bulletInfo = document.getElementById('bulletInfo');
+            const itemInfoP1 = document.getElementById('itemInfoP1');
+            const itemInfoP2 = document.getElementById('itemInfoP2');
+            const lifeInfoP1 = document.getElementById('lifeInfoP1');
+            const lifeInfoP2 = document.getElementById('lifeInfoP2');
+            const storyModal = document.getElementById('storyModal');
+            const instructionsModal = document.getElementById('instructionsModal');
+            const closeStoryModal = document.getElementById('closeStoryModal');
+            const closeInstructionsModal = document.getElementById('closeInstructionsModal');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const totalBullets = 10;
+            const maxItems = 4;
+            let realBullets;
+            let blankBullets;
+            let lifePointsP1;
+            let lifePointsP2;
+            let currentPlayer = 'P1';
+            let itemsP1 = [];
+            let itemsP2 = [];
+            const items = ['알약', '돋보기', '맥주', '조커카드'];
+
+            const initializeGame = () => {
+                realBullets = Math.floor(Math.random() * (totalBullets / 2)) + 1;
+                blankBullets = totalBullets - realBullets;
+                const initialLifePoints = Math.floor(Math.random() * 4) + 2; // 2~5 랜덤 생명
+                lifePointsP1 = initialLifePoints;
+                lifePointsP2 = initialLifePoints;
+                itemsP1 = [];
+                itemsP2 = [];
+                currentPlayer = 'P1';
+                updateUI();
+            };
+
+            const updateUI = () => {
+                updateBulletInfo();
+                updateClickInfo();
+                updateItemInfo();
+                updateLifeInfo();
+                shootOpponent.disabled = false;
+                shootSelf.disabled = false;
+                shootOpponent.textContent = '상대에게 쏘기';
+                shootSelf.textContent = '자신에게 쏘기';
+                shootOpponent.style.backgroundColor = '#007BFF';
+                shootSelf.style.backgroundColor = '#007BFF';
+                useItem.disabled = currentPlayer === 'P1' ? itemsP1.length === 0 : itemsP2.length === 0;
+            };
+
+            const updateBulletInfo = () => {
+                bulletInfo.textContent = `실탄: ${realBullets}, 공포탄: ${blankBullets}`;
+            };
+
+            const updateClickInfo = () => {
+                clickInfo.textContent = `현재 턴: ${currentPlayer}`;
+            };
+
+            const updateItemInfo = () => {
+                itemInfoP1.textContent = `P1 아이템: ${itemsP1.join(', ')}`;
+                itemInfoP2.textContent = `P2 아이템: ${itemsP2.join(', ')}`;
+            };
+
+            const updateLifeInfo = () => {
+                lifeInfoP1.textContent = `P1 생명: ${lifePointsP1}`;
+                lifeInfoP2.textContent = `P2 생명: ${lifePointsP2}`;
+            };
+
+            const handleShoot = (target) => {
+                const isRealBullet = Math.random() < realBullets / (realBullets + blankBullets);
+                if (isRealBullet) {
+                    realBullets--;
+                    if (target === 'self') {
+                        if (currentPlayer === 'P1') {
+                            lifePointsP1--;
+                        } else {
+                            lifePointsP2--;
+                        }
+                        checkLife();
+                    } else {
+                        if (currentPlayer === 'P1') {
+                            lifePointsP2--;
+                        } else {
+                            lifePointsP1--;
+                        }
+                        checkLife();
+                        currentPlayer = currentPlayer === 'P1' ? 'P2' : 'P1';
+                    }
+                } else {
+                    blankBullets--;
+                    if (target === 'self') {
+                        shootSelf.textContent = '공포탄';
+                        shootSelf.style.backgroundColor = 'green';
+                    } else {
+                        shootOpponent.textContent = '공포탄';
+                        shootOpponent.style.backgroundColor = 'green';
+                        currentPlayer = currentPlayer === 'P1' ? 'P2' : 'P1';
+                    }
+                }
+                updateUI();
+
+                if (realBullets === 0 && blankBullets === 0) {
+                    setTimeout(() => {
+                        alert('탄약을 다 사용했습니다! 무승부로 탄약을 재장전합니다.');
+                        realBullets = Math.floor(Math.random() * (totalBullets / 2)) + 1;
+                        blankBullets = totalBullets - realBullets;
+                        updateUI();
+                    }, 100);
+                }
+
+                giveItemToCurrentPlayer();
+            };
+
+            const handleUseItem = (itemIndex) => {
+                let currentItem;
+                if (currentPlayer === 'P1') {
+                    currentItem = itemsP1.splice(itemIndex, 1)[0];
+                } else {
+                    currentItem = itemsP2.splice(itemIndex, 1)[0];
+                }
+
+                if (currentItem === '알약') {
+                    if (currentPlayer === 'P1') {
+                        lifePointsP1++;
+                    } else {
+                        lifePointsP2++;
+                    }
+                    alert('알약을 사용하여 생명이 1 증가했습니다!');
+                } else if (currentItem === '돋보기') {
+                    const nextBullet = realBullets > 0 ? '실탄' : '공포탄';
+                    alert(`돋보기를 사용하여 다음 탄은 ${nextBullet}입니다!`);
+                } else if (currentItem === '맥주') {
+                    const isRealBullet = Math.random() < realBullets / (realBullets + blankBullets);
+                    if (isRealBullet) {
+                        realBullets--;
+                    } else {
+                        blankBullets--;
+                    }
+                    alert('맥주를 사용하여 이번 탄을 제거했습니다!');
+
+                    // 마지막 남은 탄을 제거한 경우 탄약 재장전
+                    if (realBullets === 0 && blankBullets === 0) {
+                        alert('마지막 탄을 제거했습니다! 무승부로 탄약을 재장전합니다.');
+                        realBullets = Math.floor(Math.random() * (totalBullets / 2)) + 1;
+                        blankBullets = totalBullets - realBullets;
+                    }
+                } else if (currentItem === '조커카드') {
+                    realBullets = Math.floor(Math.random() * (totalBullets / 2)) + 1;
+                    blankBullets = totalBullets - realBullets;
+                    alert('조커카드를 사용하여 탄약을 재장전했습니다!');
+                }
+
+                // 아이템 사용 후 턴 변경하지 않음
+                updateUI();
+                if (currentPlayer === 'P2') {
+                    aiTurn();
+                }
+            };
+
+            const giveItemToCurrentPlayer = () => {
+                if ((currentPlayer === 'P1' && itemsP1.length < maxItems) || (currentPlayer === 'P2' && itemsP2.length < maxItems)) {
+                    const randomIndex = Math.floor(Math.random() * items.length);
+                    if (currentPlayer === 'P1') {
+                        itemsP1.push(items[randomIndex]);
+                    } else {
+                        itemsP2.push(items[randomIndex]);
+                    }
+                    updateItemInfo();
+                    // 아이템을 받은 후 즉시 사용할 수 있도록 useItem 버튼 활성화
+                    useItem.disabled = false;
+                } else {
+                    alert(`${currentPlayer}는 이미 최대 아이템을 보유 중입니다!`);
+                }
+                if (currentPlayer === 'P2') {
+                    aiTurn();
+                }
+            };
+
+            const checkLife = () => {
+                if (lifePointsP1 <= 0) {
+                    setTimeout(() => {
+                        window.location.href = 'bad_ending.html';
+                    }, 100);
+                } else if (lifePointsP2 <= 0) {
+                    setTimeout(() => {
+                        alert('P1가 승리했습니다!');
+                        initializeGame();
+                    }, 100);
+                }
+            };
+
+            const aiTurn = () => {
+                setTimeout(() => {
+                    if (currentPlayer !== 'P2') return;
+
+                    // AI 전략: 생명 점수가 낮을 때 아이템 사용 우선
+                    if (lifePointsP2 <= 2 && itemsP2.includes('알약')) {
+                        handleUseItem(itemsP2.indexOf('알약'));
+                        return;
+                    }
+
+                    // 생명이 충분할 때, 총 쏘기 시도
+                    if (lifePointsP2 > 2 || itemsP2.length === 0) {
+                        handleShoot('opponent');
+                        return;
+                    }
+
+                    // 생명이 낮을 때 다른 아이템 사용
+                    if (itemsP2.includes('돋보기')) {
+                        handleUseItem(itemsP2.indexOf('돋보기'));
+                        return;
+                    }
+
+                    if (itemsP2.includes('맥주')) {
+                        handleUseItem(itemsP2.indexOf('맥주'));
+                        return;
+                    }
+
+                    if (itemsP2.includes('조커카드')) {
+                        handleUseItem(itemsP2.indexOf('조커카드'));
+                        return;
+                    }
+
+                    // 아이템이 없을 때 마지막으로 총 쏘기 시도
+                    handleShoot('opponent');
+                }, 1000);
+            };
+
+            const toggleModal = (modal, show) => {
+                if (show) {
+                    modal.classList.remove('hidden');
+                    modalOverlay.classList.remove('hidden');
+                } else {
+                    modal.classList.add('hidden');
+                    modalOverlay.classList.add('hidden');
+                }
+            };
+
+            shootOpponent.addEventListener('click', () => handleShoot('opponent'));
+            shootSelf.addEventListener('click', () => handleShoot('self'));
+            useItem.addEventListener('click', () => {
+                if (currentPlayer === 'P1') {
+                    if (itemsP1.length === 0) {
+                        alert('사용할 수 있는 아이템이 없습니다.');
+                        return;
+                    }
+                    const itemList = itemsP1.map((item, index) => `${index}: ${item}`).join('\n');
+                    const itemIndex = prompt(`사용할 아이템을 선택하세요:\n${itemList}`);
+                    const itemIndexInt = parseInt(itemIndex, 10);
+                    if (isNaN(itemIndexInt) || itemIndexInt < 0 || itemIndexInt >= itemsP1.length) {
+                        alert('유효한 인덱스를 입력하세요.');
+                    } else {
+                        handleUseItem(itemIndexInt);
+                    }
+                }
+            });
+            resetButton.addEventListener('click', initializeGame);
+            storyButton.addEventListener('click', () => toggleModal(storyModal, true));
+            instructionsButton.addEventListener('click', () => toggleModal(instructionsModal, true));
+            closeStoryModal.addEventListener('click', () => toggleModal(storyModal, false));
+            closeInstructionsModal.addEventListener('click', () => toggleModal(instructionsModal, false));
+            modalOverlay.addEventListener('click', () => {
+                toggleModal(storyModal, false);
+                toggleModal(instructionsModal, false);
+            });
+
+            initializeGame();
+        });
+    </script>
+</body>
+</html>
